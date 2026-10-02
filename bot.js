@@ -41,10 +41,15 @@ bot.command("start", (ctx) => {
   );
 });
 
-// /fact — выдать случайный факт с кнопкой «Ещё!»
-bot.command("fact", (ctx) => {
+// /fact — выдать случайный факт с картинкой и кнопкой «Ещё!»
+bot.command("fact", async (ctx) => {
   const keyboard = new InlineKeyboard().text("🎲 Ещё!", "more");
-  ctx.reply(`💡 ${randomFact()}`, { reply_markup: keyboard });
+  await ctx.replyWithChatAction("upload_photo");
+  // picsum.photos отдаёт случайную красивую фотографию по ссылке
+  await ctx.replyWithPhoto(`https://picsum.photos/seed/${Math.floor(Math.random() * 1000)}/800/500`, {
+    caption: `💡 ${randomFact()}`,
+    reply_markup: keyboard,
+  });
 });
 
 // /info — справка
@@ -53,10 +58,12 @@ bot.command("info", (ctx) => {
 });
 
 // Обработка нажатия на кнопку «Ещё!»
-bot.callbackQuery("more", (ctx) => {
+bot.callbackQuery("more", async (ctx) => {
   ctx.answerCallbackQuery(); // убираем «часики» на кнопке
-  const keyboard = new InlineKeyboard().text("🎲 Ещё!", "more");
-  ctx.editMessageText(`💡 ${randomFact()}`, { reply_markup: keyboard });
+  await ctx.replyWithChatAction("upload_photo");
+  await ctx.replyWithPhoto(`https://picsum.photos/seed/${Math.floor(Math.random() * 1000)}/800/500`, {
+    caption: `💡 ${randomFact()}`,
+  });
 });
 
 // =====================================================
@@ -106,7 +113,9 @@ setInterval(async () => {
   writeFileSync(SENT_FILE, today);
   for (const chatId of loadSubscribers()) {
     try {
-      await bot.api.sendMessage(chatId, `☀️ Факт дня:\n\n💡 ${randomFact()}`);
+      await bot.api.sendPhoto(chatId, `https://picsum.photos/seed/${Math.floor(Math.random() * 1000)}/800/500`, {
+        caption: `☀️ Доброе утро! Факт дня:\n\n💡 ${randomFact()}`,
+      });
     } catch (err) {
       console.error("Не удалось отправить", chatId, err.message);
     }
