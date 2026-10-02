@@ -7,7 +7,7 @@
 import "dotenv/config";
 
 // grammY — библиотека для ботов. Импортируем из папки node_modules.
-import { Bot, InlineKeyboard } from "grammy";
+import { Bot, InlineKeyboard, Keyboard } from "grammy";
 
 // Токен — секретный ключ бота. Мы храним его в файле .env,
 // чтобы он не попал в код, который загрузим на GitHub.
@@ -33,6 +33,12 @@ function randomFact() {
 // /start — приветствие, когда человек первый раз пишет боту
 // Отправляем сову-талисман (картинка лежит в папке проекта), текст — подписью к ней
 import { InputFile } from "grammy";
+
+// Красивые кнопки внизу экрана (ReplyKeyboard) — видны всегда
+const menuKeyboard = new Keyboard()
+  .text("🦉 Дай факт").row()
+  .text("👟 Кто ты?").resized();
+
 bot.command("start", async (ctx) => {
   await ctx.replyWithPhoto(new InputFile("./owl.jpg"), {
     caption:
@@ -40,14 +46,13 @@ bot.command("start", async (ctx) => {
       `Привет, ${ctx.from.first_name}! Я — самый уютный бот в Telegram. ` +
       `Каждое утро в 9:00 я надеваю свои любимые тапки, завариваю чай ` +
       `и достаю для тебя из-под дивана один удивительный факт о мире. 🌍✨\n\n` +
-      `Устраивайся поудобнее:\n\n` +
-      `/fact — достать факт из тапка прямо сейчас 👡\n` +
-      `/info — что я ещё умею`,
+      `Смотри, внизу появились кнопки — жми «🦉 Дай факт» и наслаждайся!`,
+    reply_markup: menuKeyboard,
   });
 });
 
-// /fact — выдать случайную тапку с картинкой и кнопкой «Ещё!»
-bot.command("fact", async (ctx) => {
+// /fact — выдать случайный факт с картинкой и кнопкой «Ещё!»
+async function sendFact(ctx) {
   const keyboard = new InlineKeyboard().text("🎲 Ещё!", "more");
   await ctx.replyWithChatAction("upload_photo");
   // picsum.photos отдаёт случайную красивую фотографию по ссылке
@@ -55,19 +60,26 @@ bot.command("fact", async (ctx) => {
     caption: `💡 ${randomFact()}`,
     reply_markup: keyboard,
   });
-});
+}
 
-// /info — справка
-bot.command("info", (ctx) => {
-  ctx.reply(
+// Справка о боте — общий текст для /info и кнопки
+function infoText() {
+  return (
     `👟 Меня зовут «Факты в тапках».\n\n` +
     `Что я умею:\n` +
-    `🧦 /fact — случайный факт с картинкой\n` +
+    `🦉 Кнопка «Дай факт» — случайный факт с картинкой\n` +
     `🎲 Кнопка «Ещё!» — тапок за тапком\n` +
     `☕️ В 9:00 утра — факт дня, как кофе, только для мозга\n\n` +
     `Уютного познания! 🧠✨`
   );
-});
+}
+
+bot.command("fact", sendFact);
+bot.command("info", (ctx) => ctx.reply(infoText()));
+
+// Реакция на красивые кнопки внизу — то же самое, что команды
+bot.hears("🦉 Дай факт", sendFact);
+bot.hears("👟 Кто ты?", (ctx) => ctx.reply(infoText(), { reply_markup: menuKeyboard }));
 
 // Обработка нажатия на кнопку «Ещё!»
 bot.callbackQuery("more", async (ctx) => {
