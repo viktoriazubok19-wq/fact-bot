@@ -1,5 +1,5 @@
 // ============================================
-// Telegram-бот «Факт дня»
+// Telegram-бот «Тапки дня»
 // Первый проект: Node.js + grammY
 // ============================================
 
@@ -20,11 +20,11 @@ if (!token) {
 // Создаём бота
 const bot = new Bot(token);
 
-// Загружаем факты из файла facts.json
+// Загружаем тапки из файла facts.json
 import { readFileSync } from "node:fs";
 const facts = JSON.parse(readFileSync("./facts.json", "utf-8"));
 
-// Функция возвращает случайный факт из массива
+// Функция возвращает случайную тапку из массива
 function randomFact() {
   const index = Math.floor(Math.random() * facts.length);
   return facts[index];
@@ -34,14 +34,14 @@ function randomFact() {
 bot.command("start", (ctx) => {
   ctx.reply(
     `Привет, ${ctx.from.first_name}! 👋\n\n` +
-    `Я бот «Факт дня». Каждое утро буду присылать тебе интересный факт.\n\n` +
+    `Я бот «Тапки дня». Каждое утро буду присылать тебе интересную тапку.\n\n` +
     `Команды:\n` +
-    `/fact — получить факт прямо сейчас\n` +
+    `/fact — получить тапку прямо сейчас\n` +
     `/info — что я умею`
   );
 });
 
-// /fact — выдать случайный факт с картинкой и кнопкой «Ещё!»
+// /fact — выдать случайную тапку с картинкой и кнопкой «Ещё!»
 bot.command("fact", async (ctx) => {
   const keyboard = new InlineKeyboard().text("🎲 Ещё!", "more");
   await ctx.replyWithChatAction("upload_photo");
@@ -54,7 +54,7 @@ bot.command("fact", async (ctx) => {
 
 // /info — справка
 bot.command("info", (ctx) => {
-  ctx.reply("Я умею присылать интересные факты. Нажми /fact и узнаешь что-то новое! 🧠");
+  ctx.reply("Я умею присылать интересные тапки. Нажми /fact и узнаешь что-то новое! 🧠");
 });
 
 // Обработка нажатия на кнопку «Ещё!»
@@ -71,7 +71,7 @@ bot.callbackQuery("more", async (ctx) => {
 // Пока у бота один подписчик (ты). Когда кто-то жмёт /start,
 // его chat_id сохраняется в файл subscribers.json.
 // Раз в минуту бот проверяет время: если настало 9:00
-// и рассылка сегодня ещё не была — шлёт факт всем подписчикам.
+// и рассылка сегодня ещё не была — шлёт тапку всем подписчикам.
 // =====================================================
 import { existsSync, writeFileSync, readFileSync as readFile } from "node:fs";
 
@@ -114,7 +114,7 @@ setInterval(async () => {
   for (const chatId of loadSubscribers()) {
     try {
       await bot.api.sendPhoto(chatId, `https://picsum.photos/seed/${Math.floor(Math.random() * 1000)}/800/500`, {
-        caption: `☀️ Доброе утро! Факт дня:\n\n💡 ${randomFact()}`,
+        caption: `☀️ Доброе утро! Тапки дня:\n\n💡 ${randomFact()}`,
       });
     } catch (err) {
       console.error("Не удалось отправить", chatId, err.message);
