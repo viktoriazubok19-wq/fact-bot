@@ -1,0 +1,5 @@
+# Секреты и рабочие файлы не попадают на GitHub
+.env
+node_modules/
+subscribers.json
+last_sent.txt

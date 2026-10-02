@@ -1,0 +1,17 @@
+{
+  "name": "fact-bot",
+  "version": "1.0.0",
+  "description": "Telegram-бот «Факт дня» — первый проект",
+  "main": "bot.js",
+  "type": "module",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "keywords": ["telegram", "bot"],
+  "author": "Viktoriya",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^18.0.5",
+    "grammy": "^1.46.0"
+  }
+}
