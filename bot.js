@@ -39,7 +39,8 @@ import { InputFile } from "grammy";
 const menuKeyboard = new Keyboard()
   .text("🦉 Дай факт").row()
   .text("🎯 Хочу тапку-загадку!").row()
-  .text("👟 Кто ты?").resized();
+  .text("👟 Кто ты?").row()
+  .text("📰 Сашины новости").resized();
 
 // ============================================
 // УЮТНЫЕ ФРАЗЫ: сова общается с читателем
@@ -313,6 +314,22 @@ bot.hears(
     await react(ctx.chat.id, ctx.message.message_id, emoji);
   }
 );
+// ============================================
+// САШИНЫ НОВОСТИ 📰
+// Вечерние сводки из совиного мира.
+// По кнопке — в любой момент, а в 20:00
+// Саша сам присылает свежий выпуск подписчикам.
+// ============================================
+import { readFileSync as readNews } from "node:fs";
+const news = JSON.parse(readNews("./news.json", "utf-8"));
+
+function sendNews(api, chatId) {
+  return api.sendMessage(chatId, pick(news));
+}
+
+bot.command("news", (ctx) => sendNews(ctx.api, ctx.chat.id));
+bot.hears("📰 Сашины новости", (ctx) => sendNews(ctx.api, ctx.chat.id));
+
 // =====================================================
 // Ежедневная рассылка в 9:00
 // Раз в минуту бот проверяет время: если настало 9:00
@@ -323,6 +340,7 @@ import { existsSync, writeFileSync, readFileSync as readFile } from "node:fs";
 
 const SUBS_FILE = "./subscribers.json";
 const SENT_FILE = "./last_sent.txt";
+const NEWS_SENT_FILE = "./news_sent.txt";
 
 function loadSubscribers() {
   if (!existsSync(SUBS_FILE)) return [];
@@ -366,6 +384,25 @@ setInterval(async () => {
     }
   }
 }, 60_000); // проверка раз в минуту
+
+// Вечерний выпуск Сашиных новостей — каждый день в 20:00
+setInterval(async () => {
+  const now = new Date();
+  if (now.getHours() !== 20 || now.getMinutes() !== 0) return;
+
+  const today = now.toDateString();
+  if (existsSync(NEWS_SENT_FILE) && readFile(NEWS_SENT_FILE, "utf-8") === today) return;
+  writeFileSync(NEWS_SENT_FILE, today);
+
+  for (const chatId of loadSubscribers()) {
+    try {
+      await bot.api.sendMessage(chatId, "🗞 «Саша принёс свежую газету!»");
+      await sendNews(bot.api, chatId);
+    } catch (err) {
+      console.error("Не удалось отправить новости", chatId, err.message);
+    }
+  }
+}, 60_000);
 
 // ----------------------------------------------------
 // Мини HTTP-сервер: Render проверяет «жив ли бот» запросами

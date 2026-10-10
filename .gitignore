@@ -3,3 +3,4 @@
 node_modules/
 subscribers.json
 last_sent.txt
+news_sent.txt
