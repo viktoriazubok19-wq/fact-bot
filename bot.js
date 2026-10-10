@@ -53,43 +53,10 @@ bot.command("start", async (ctx) => {
   });
 });
 
-// /fact — выдать случайный факт, картинку рисует нейросеть по теме факта
-import { Buffer } from "node:buffer";
-
-// Кэш: чтобы один и тот же факт не рисовался заново при повторе
-const imageCache = new Map();
-
-// Просим нейросеть нарисовать сцену по короткой подсказке fact.art
-// (не по всему тексту факта — иначе получаются случайные сюжеты).
-// В конец добавляем стиль и запрет на людей и лица.
-// Если нейросеть недоступна — возвращаем null, бот пришлёт обычное фото.
-async function drawFact(fact) {
-  if (imageCache.has(fact.text)) return imageCache.get(fact.text);
-  try {
-    const prompt = encodeURIComponent(
-      fact.art + ", cute cozy cartoon illustration, warm soft colors, no people, no faces, no text"
-    );
-    const res = await fetch(`https://image.pollinations.ai/prompt/${prompt}?width=800&height=500&nologo=true`, {
-      signal: AbortSignal.timeout(90_000), // нейросеть думает до ~полутора минут
-    });
-    if (!res.ok) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    imageCache.set(fact.text, buf);
-    return buf;
-  } catch {
-    return null;
-  }
-}
-
+// /fact — выдать случайный факт простым сообщением
 async function sendFact(ctx) {
   const keyboard = new InlineKeyboard().text("🎲 Ещё!", "more");
-  const fact = randomFact();
-  await ctx.replyWithChatAction("upload_photo"); // «отправляет фотографию...»
-  const image = await drawFact(fact);
-  await ctx.replyWithPhoto(image ? new InputFile(image) : `https://picsum.photos/seed/${Math.floor(Math.random() * 1000)}/800/500`, {
-    caption: `💡 ${fact.text}`,
-    reply_markup: keyboard,
-  });
+  await ctx.reply(`💡 ${randomFact()}`, { reply_markup: keyboard });
 }
 
 // Справка о боте — общий текст для /info и кнопки
@@ -97,7 +64,7 @@ function infoText() {
   return (
     `👟 Меня зовут «Совушка в тапках».\n\n` +
     `Что я умею:\n` +
-    `🦉 Кнопка «Дай факт» — случайный факт с картинкой\n` +
+    `🦉 Кнопка «Дай факт» — случайный факт\n` +
     `🎯 Кнопка «Хочу тапку-загадку!» — викторина в любой момент\n` +
     `🎲 Кнопка «Ещё!» — тапок за тапком\n` +
     `☕️ В 9:00 утра — викторина дня, как кофе, только для мозга\n\n` +
