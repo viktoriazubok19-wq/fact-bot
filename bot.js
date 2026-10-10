@@ -37,6 +37,7 @@ import { InputFile } from "grammy";
 // Красивые кнопки внизу экрана (ReplyKeyboard) — видны всегда
 const menuKeyboard = new Keyboard()
   .text("🦉 Дай факт").row()
+  .text("🎯 Викторина").row()
   .text("👟 Кто ты?").resized();
 
 bot.command("start", async (ctx) => {
@@ -68,8 +69,9 @@ function infoText() {
     `👟 Меня зовут «Факты в тапках».\n\n` +
     `Что я умею:\n` +
     `🦉 Кнопка «Дай факт» — случайный факт с картинкой\n` +
+    `🎯 Кнопка «Викторина» — проверь, что ты знаешь!\n` +
     `🎲 Кнопка «Ещё!» — тапок за тапком\n` +
-    `☕️ В 9:00 утра — факт дня, как кофе, только для мозга\n\n` +
+    `☕️ В 9:00 утра — викторина дня, как кофе, только для мозга\n\n` +
     `Уютного познания! 🧠✨`
   );
 }
@@ -79,6 +81,7 @@ bot.command("info", (ctx) => ctx.reply(infoText()));
 
 // Реакция на красивые кнопки внизу — то же самое, что команды
 bot.hears("🦉 Дай факт", sendFact);
+bot.hears("🎯 Викторина", (ctx) => sendQuiz(ctx.api, ctx.chat.id));
 bot.hears("👟 Кто ты?", (ctx) => ctx.reply(infoText(), { reply_markup: menuKeyboard }));
 
 // Обработка нажатия на кнопку «Ещё!»
@@ -91,11 +94,52 @@ bot.callbackQuery("more", async (ctx) => {
 });
 
 // =====================================================
+// ВИКТОРИНА 🎯
+// Вопросы лежат в quiz.json. В inline-кнопки зашиваем
+// номер вопроса и номер ответа (callback data), поэтому
+// состояние хранить не нужно — правильный ответ берём
+// из quiz.json по номеру вопроса.
+// =====================================================
+import { readFileSync as readQuizFile } from "node:fs";
+const quiz = JSON.parse(readQuizFile("./quiz.json", "utf-8"));
+
+// Выслать случайный вопрос с тремя вариантами ответа
+function sendQuiz(api, chatId) {
+  const qid = Math.floor(Math.random() * quiz.length);
+  const q = quiz[qid];
+  const keyboard = new InlineKeyboard()
+    .text(q.options[0], `quiz:${qid}:0`).row()
+    .text(q.options[1], `quiz:${qid}:1`).row()
+    .text(q.options[2], `quiz:${qid}:2`);
+  return api.sendMessage(chatId,
+    `🎯 Викторина!\n\n${q.question}\n\n⏱ Думай, тапки не спешат...`,
+    { reply_markup: keyboard }
+  );
+}
+
+bot.command("quiz", (ctx) => sendQuiz(ctx.api, ctx.chat.id));
+
+// Нажатие на вариант ответа
+bot.callbackQuery(/^quiz:(\d+):(\d+)$/, async (ctx) => {
+  const qid = Number(ctx.match[1]);
+  const chosen = Number(ctx.match[2]);
+  const q = quiz[qid];
+  const right = chosen === q.correct;
+
+  ctx.answerCallbackQuery(); // убираем «часики»
+  await ctx.editMessageReplyMarkup({ reply_markup: undefined }); // гасим кнопки
+  await ctx.reply(
+    (right ? `✅ Точно! ` : `❌ Почти! Правильный ответ: «${q.options[q.correct]}».\n\n`) +
+    `🧠 ${q.explanation}`
+  );
+  // Бонус — утешительный/праздновательный факт
+  await sendFact(ctx);
+});
+// =====================================================
 // Ежедневная рассылка в 9:00
-// Пока у бота один подписчик (ты). Когда кто-то жмёт /start,
-// его chat_id сохраняется в файл subscribers.json.
 // Раз в минуту бот проверяет время: если настало 9:00
-// и рассылка сегодня ещё не была — шлёт тапку всем подписчикам.
+// и рассылка сегодня ещё не была — шлёт всем подписчикам
+// утреннюю викторину (а бонусный факт — после ответа).
 // =====================================================
 import { existsSync, writeFileSync, readFileSync as readFile } from "node:fs";
 
@@ -137,9 +181,8 @@ setInterval(async () => {
   writeFileSync(SENT_FILE, today);
   for (const chatId of loadSubscribers()) {
     try {
-      await bot.api.sendPhoto(chatId, `https://picsum.photos/seed/${Math.floor(Math.random() * 1000)}/800/500`, {
-        caption: `☀️ Доброе утро! Держи факт из тапка:\n\n💡 ${randomFact()}`,
-      });
+      await bot.api.sendMessage(chatId, `☀️ Доброе утро! Утро начинается не с кофе, а с викторины:`);
+      await sendQuiz(bot.api, chatId);
     } catch (err) {
       console.error("Не удалось отправить", chatId, err.message);
     }
