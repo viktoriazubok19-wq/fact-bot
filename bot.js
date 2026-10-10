@@ -41,13 +41,58 @@ const menuKeyboard = new Keyboard()
   .text("🎯 Хочу тапку-загадку!").row()
   .text("👟 Кто ты?").resized();
 
+// ============================================
+// УЮТНЫЕ ФРАЗЫ: сова общается с читателем
+// ============================================
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+// Приветствие зависит от времени суток
+function dayGreeting() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return "Доброе утро! Чайник уже закипел ☕️";
+  if (h >= 12 && h < 18) return "Добрый день! Тапки на месте, я на посту 🥿";
+  if (h >= 18 && h < 23) return "Добрый вечер! Самое уютное время для фактов 🌙";
+  return "Ой, кто-то не спит! Ночные факты — самые загадочные ✨";
+}
+
+// Случайные фразы-подписи к фактам
+const factCaptions = [
+  "Устраивайся поудобнее, сейчас будет интересно...",
+  "Из глубин совиных знаний:",
+  "Сова нашла это под диваном:",
+  "Держи, только из печки, ещё тёплый!",
+  "Один удивительный факт, как по заказу:",
+  "Совушка выглянула в окно и рассказала:",
+  "Сегодня в рубрике «Оказывается»:",
+  "Наливай чай, история длинной в одну тапку:",
+];
+
+// Похвалы за правильный ответ
+const quizPraise = [
+  "Тапки тебе по размеру! 🥿",
+  "Сова аплодирует крыльями!",
+  "Мозг в идеальной форме — сова одобряет!",
+  "Вот это попадание! Даже чайник вскипел от гордости ☕️",
+  "Блестяще! Совушка записывает тебя в почётные совята 🦉",
+];
+
+// Подбадривания за неправильный ответ
+const quizSupport = [
+  "Ничего страшного, сова тоже иногда засыпает на уроках 😊",
+  "Бывает! Зато теперь знаешь — и это главное.",
+  "Не расстраивайся, этот факт знает только сова. И теперь ты!",
+  "Мимо тапки! Но за старание — бонусный факт:",
+  "Ошибиться — просто узнать новое. Обнимашки совушки 🤗",
+];
+
 bot.command("start", async (ctx) => {
   await ctx.replyWithPhoto(new InputFile("./owl.jpg"), {
     caption:
-      `🥿 Добро пожаловать в «Совушка в тапках»!\n\n` +
-      `Привет, ${ctx.from.first_name}! Я — самый уютный бот в Telegram. ` +
-      `Каждое утро в 9:00 я надеваю свои любимые тапки, завариваю чай ` +
-      `и достаю для тебя из-под дивана один удивительный факт о мире. 🌍✨\n\n` +
+      `🥿 Добро пожаловать в «Совушку в тапках»!\n\n` +
+      `Привет, ${ctx.from.first_name}! ${dayGreeting()}\n\n` +
+      `Я — самый уютный бот в Telegram. Каждое утро в 9:00 я надеваю свои ` +
+      `любимые тапки, завариваю чай и достаю для тебя из-под дивана ` +
+      `один удивительный факт о мире. 🌍✨\n\n` +
       `Смотри, внизу появились кнопки — жми «🦉 Дай факт» и наслаждайся!`,
     reply_markup: menuKeyboard,
   });
@@ -145,7 +190,10 @@ function factCard(fact) {
 async function sendFact(ctx) {
   const keyboard = new InlineKeyboard().text("🎲 Ещё!", "more");
   const fact = randomFact();
-  await ctx.replyWithPhoto(new InputFile(factCard(fact)), { reply_markup: keyboard });
+  await ctx.replyWithPhoto(new InputFile(factCard(fact)), {
+    caption: pick(factCaptions),
+    reply_markup: keyboard,
+  });
 }
 
 // Справка о боте — общий текст для /info и кнопки
@@ -168,6 +216,16 @@ bot.command("info", (ctx) => ctx.reply(infoText()));
 bot.hears("🦉 Дай факт", sendFact);
 bot.hears("🎯 Хочу тапку-загадку!", (ctx) => sendQuiz(ctx.api, ctx.chat.id));
 bot.hears("👟 Кто ты?", (ctx) => ctx.reply(infoText(), { reply_markup: menuKeyboard }));
+
+// Простые разговорные фразы — сова поддерживает беседу
+bot.hears(/(как дела|как ты|что делаешь|привет|здравствуй|хай|доброе утро|добрый вечер|добрый день)/i, (ctx) => {
+  ctx.reply(pick([
+    `Всё уютно: тапки греты, чай налит, факты разложены по полочкам! ${dayGreeting()} А у тебя как? 😊`,
+    "Я тут подметаю знания по углам и жду тебя! Спроси что-нибудь — например, жми «🦉 Дай факт» 🥿",
+    `${dayGreeting()} Сова к твоим услугам! Хочешь факт или викторину? 🦉`,
+    "Отлично! Сегодня сова особенно мудрая — надо использовать! 🧠✨",
+  ]));
+});
 
 // Обработка нажатия на кнопку «Ещё!»
 bot.callbackQuery("more", async (ctx) => {
@@ -212,7 +270,9 @@ bot.callbackQuery(/^quiz:(\d+):(\d+)$/, async (ctx) => {
   await ctx.editMessageReplyMarkup({ reply_markup: undefined }); // гасим кнопки
   if (right) react(ctx.chat.id, ctx.update.callback_query.message.message_id, "🤩"); // аплодисменты
   await ctx.reply(
-    (right ? `✅ Точно! ` : `❌ Почти! Правильный ответ: «${q.options[q.correct]}».\n\n`) +
+    (right
+      ? `✅ Точно! ${pick(quizPraise)}\n\n`
+      : `❌ Почти! Правильный ответ: «${q.options[q.correct]}».\n\n${pick(quizSupport)}\n\n`) +
     `🧠 ${q.explanation}`
   );
   // Бонус — утешительный/праздновательный факт
@@ -289,7 +349,7 @@ setInterval(async () => {
   writeFileSync(SENT_FILE, today);
   for (const chatId of loadSubscribers()) {
     try {
-      await bot.api.sendMessage(chatId, `☀️ Доброе утро! Утро начинается не с кофе, а с викторины:`);
+      await bot.api.sendMessage(chatId, `☀️ ${dayGreeting()} Доброе утро начинается не с кофе, а с викторины:`);
       await sendQuiz(bot.api, chatId);
     } catch (err) {
       console.error("Не удалось отправить", chatId, err.message);
