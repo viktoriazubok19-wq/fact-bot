@@ -52,13 +52,37 @@ bot.command("start", async (ctx) => {
   });
 });
 
-// /fact — выдать случайный факт с картинкой и кнопкой «Ещё!»
+// /fact — выдать случайный факт, картинку рисует нейросеть по теме факта
+import { Buffer } from "node:buffer";
+
+// Кэш: чтобы один и тот же факт не рисовался заново при повторе
+const imageCache = new Map();
+
+// Просим нейросеть нарисовать сцену по тексту факта.
+// Если нейросеть недоступна — возвращаем null, бот пришлёт обычное фото.
+async function drawFact(fact) {
+  if (imageCache.has(fact)) return imageCache.get(fact);
+  try {
+    const prompt = encodeURIComponent(fact.slice(0, 250)) + ", cute cozy cartoon illustration, warm soft colors, no text";
+    const res = await fetch(`https://image.pollinations.ai/prompt/${prompt}?width=800&height=500&nologo=true`, {
+      signal: AbortSignal.timeout(90_000), // нейросеть думает до ~полутора минут
+    });
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    imageCache.set(fact, buf);
+    return buf;
+  } catch {
+    return null;
+  }
+}
+
 async function sendFact(ctx) {
   const keyboard = new InlineKeyboard().text("🎲 Ещё!", "more");
-  await ctx.replyWithChatAction("upload_photo");
-  // picsum.photos отдаёт случайную красивую фотографию по ссылке
-  await ctx.replyWithPhoto(`https://picsum.photos/seed/${Math.floor(Math.random() * 1000)}/800/500`, {
-    caption: `💡 ${randomFact()}`,
+  const fact = randomFact();
+  await ctx.replyWithChatAction("upload_photo"); // «отправляет фотографию...»
+  const image = await drawFact(fact);
+  await ctx.replyWithPhoto(image ? new InputFile(image) : `https://picsum.photos/seed/${Math.floor(Math.random() * 1000)}/800/500`, {
+    caption: `💡 ${fact}`,
     reply_markup: keyboard,
   });
 }
@@ -87,10 +111,7 @@ bot.hears("👟 Кто ты?", (ctx) => ctx.reply(infoText(), { reply_markup: me
 // Обработка нажатия на кнопку «Ещё!»
 bot.callbackQuery("more", async (ctx) => {
   ctx.answerCallbackQuery(); // убираем «часики» на кнопке
-  await ctx.replyWithChatAction("upload_photo");
-  await ctx.replyWithPhoto(`https://picsum.photos/seed/${Math.floor(Math.random() * 1000)}/800/500`, {
-    caption: `💡 ${randomFact()}`,
-  });
+  await sendFact(ctx); // та же логика, что и у команды /fact
 });
 
 // =====================================================
