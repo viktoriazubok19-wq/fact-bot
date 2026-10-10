@@ -20,11 +20,12 @@ if (!token) {
 // Создаём бота
 const bot = new Bot(token);
 
-// Загружаем тапки из файла facts.json
+// Загружаем факты из файла facts.json
+// У каждого факта два поля: text (что присылаем) и art (что рисуем)
 import { readFileSync } from "node:fs";
 const facts = JSON.parse(readFileSync("./facts.json", "utf-8"));
 
-// Функция возвращает случайную тапку из массива
+// Функция возвращает случайный факт (объект {text, art}) из массива
 function randomFact() {
   const index = Math.floor(Math.random() * facts.length);
   return facts[index];
@@ -58,18 +59,22 @@ import { Buffer } from "node:buffer";
 // Кэш: чтобы один и тот же факт не рисовался заново при повторе
 const imageCache = new Map();
 
-// Просим нейросеть нарисовать сцену по тексту факта.
+// Просим нейросеть нарисовать сцену по короткой подсказке fact.art
+// (не по всему тексту факта — иначе получаются случайные сюжеты).
+// В конец добавляем стиль и запрет на людей и лица.
 // Если нейросеть недоступна — возвращаем null, бот пришлёт обычное фото.
 async function drawFact(fact) {
-  if (imageCache.has(fact)) return imageCache.get(fact);
+  if (imageCache.has(fact.text)) return imageCache.get(fact.text);
   try {
-    const prompt = encodeURIComponent(fact.slice(0, 250)) + ", cute cozy cartoon illustration, warm soft colors, no text";
+    const prompt = encodeURIComponent(
+      fact.art + ", cute cozy cartoon illustration, warm soft colors, no people, no faces, no text"
+    );
     const res = await fetch(`https://image.pollinations.ai/prompt/${prompt}?width=800&height=500&nologo=true`, {
       signal: AbortSignal.timeout(90_000), // нейросеть думает до ~полутора минут
     });
     if (!res.ok) return null;
     const buf = Buffer.from(await res.arrayBuffer());
-    imageCache.set(fact, buf);
+    imageCache.set(fact.text, buf);
     return buf;
   } catch {
     return null;
@@ -82,7 +87,7 @@ async function sendFact(ctx) {
   await ctx.replyWithChatAction("upload_photo"); // «отправляет фотографию...»
   const image = await drawFact(fact);
   await ctx.replyWithPhoto(image ? new InputFile(image) : `https://picsum.photos/seed/${Math.floor(Math.random() * 1000)}/800/500`, {
-    caption: `💡 ${fact}`,
+    caption: `💡 ${fact.text}`,
     reply_markup: keyboard,
   });
 }
