@@ -37,7 +37,7 @@ import { InputFile } from "grammy";
 // Красивые кнопки внизу экрана (ReplyKeyboard) — видны всегда
 const menuKeyboard = new Keyboard()
   .text("🦉 Дай факт").row()
-  .text("🎯 Викторина").row()
+  .text("🎯 Хочу тапку-загадку!").row()
   .text("👟 Кто ты?").resized();
 
 bot.command("start", async (ctx) => {
@@ -69,7 +69,7 @@ function infoText() {
     `👟 Меня зовут «Факты в тапках».\n\n` +
     `Что я умею:\n` +
     `🦉 Кнопка «Дай факт» — случайный факт с картинкой\n` +
-    `🎯 Кнопка «Викторина» — проверь, что ты знаешь!\n` +
+    `🎯 Кнопка «Хочу тапку-загадку!» — викторина в любой момент\n` +
     `🎲 Кнопка «Ещё!» — тапок за тапком\n` +
     `☕️ В 9:00 утра — викторина дня, как кофе, только для мозга\n\n` +
     `Уютного познания! 🧠✨`
@@ -81,7 +81,7 @@ bot.command("info", (ctx) => ctx.reply(infoText()));
 
 // Реакция на красивые кнопки внизу — то же самое, что команды
 bot.hears("🦉 Дай факт", sendFact);
-bot.hears("🎯 Викторина", (ctx) => sendQuiz(ctx.api, ctx.chat.id));
+bot.hears("🎯 Хочу тапку-загадку!", (ctx) => sendQuiz(ctx.api, ctx.chat.id));
 bot.hears("👟 Кто ты?", (ctx) => ctx.reply(infoText(), { reply_markup: menuKeyboard }));
 
 // Обработка нажатия на кнопку «Ещё!»
