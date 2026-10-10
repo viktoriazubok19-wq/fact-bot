@@ -40,7 +40,7 @@ const menuKeyboard = new Keyboard()
   .text("🦉 Дай факт").row()
   .text("🎯 Хочу тапку-загадку!").row()
   .text("👟 Кто ты?").row()
-  .text("📰 Сашины новости").resized();
+  .text("📰 Санькины новости").resized();
 
 // ============================================
 // УЮТНЫЕ ФРАЗЫ: сова общается с читателем
@@ -328,7 +328,7 @@ function sendNews(api, chatId) {
 }
 
 bot.command("news", (ctx) => sendNews(ctx.api, ctx.chat.id));
-bot.hears("📰 Сашины новости", (ctx) => sendNews(ctx.api, ctx.chat.id));
+bot.hears("📰 Санькины новости", (ctx) => sendNews(ctx.api, ctx.chat.id));
 
 // =====================================================
 // Ежедневная рассылка в 9:00
