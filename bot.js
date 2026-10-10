@@ -149,6 +149,7 @@ bot.callbackQuery(/^quiz:(\d+):(\d+)$/, async (ctx) => {
 
   ctx.answerCallbackQuery(); // убираем «часики»
   await ctx.editMessageReplyMarkup({ reply_markup: undefined }); // гасим кнопки
+  if (right) react(ctx.chat.id, ctx.update.callback_query.message.message_id, "🤩"); // аплодисменты
   await ctx.reply(
     (right ? `✅ Точно! ` : `❌ Почти! Правильный ответ: «${q.options[q.correct]}».\n\n`) +
     `🧠 ${q.explanation}`
@@ -156,6 +157,31 @@ bot.callbackQuery(/^quiz:(\d+):(\d+)$/, async (ctx) => {
   // Бонус — утешительный/праздновательный факт
   await sendFact(ctx);
 });
+
+// =====================================================
+// РЕАКЦИИ-ЭМОДЗИ ❤️🔥
+// Если человек хвалит бота (или просто пишет доброе слово),
+// бот ставит эмодзи-реакцию на это сообщение, как живой.
+// Только определённые эмодзи разрешены Telegram для реакций —
+// берём из разрешённого списка.
+// =====================================================
+const reactions = ["👍", "❤", "🔥", "🥰", "🤩"];
+
+// Ставим реакцию на сообщение (если Telegram откажет — молча пропускаем)
+function react(chatId, messageId, emoji) {
+  return bot.api
+    .setMessageReaction(chatId, messageId, [{ type: "emoji", emoji }])
+    .catch(() => {});
+}
+
+bot.hears(
+  /(спасибо|благодарю|молодец|молодчин[ау]|класс|супер|круто|люблю|умница|обожаю)/i,
+  async (ctx) => {
+    // случайная реакция из «тёплого» набора
+    const emoji = reactions[Math.floor(Math.random() * reactions.length)];
+    await react(ctx.chat.id, ctx.message.message_id, emoji);
+  }
+);
 // =====================================================
 // Ежедневная рассылка в 9:00
 // Раз в минуту бот проверяет время: если настало 9:00
