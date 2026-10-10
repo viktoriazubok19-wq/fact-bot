@@ -7,10 +7,14 @@
   "scripts": {
     "start": "node bot.js"
   },
-  "keywords": ["telegram", "bot"],
+  "keywords": [
+    "telegram",
+    "bot"
+  ],
   "author": "Viktoriya",
   "license": "ISC",
   "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "dotenv": "^18.0.5",
     "grammy": "^1.46.0"
   }

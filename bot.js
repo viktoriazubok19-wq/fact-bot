@@ -53,10 +53,99 @@ bot.command("start", async (ctx) => {
   });
 });
 
-// /fact — выдать случайный факт простым сообщением
+// ============================================
+// Карточки фактов: рисуем красивую картинку
+// с текстом факта через SVG + resvg.
+// ============================================
+import { Resvg } from "@resvg/resvg-js";
+
+// Перенос текста по словам, ~22 символа на строку
+function wrapText(text, maxLen) {
+  const words = text.split(" ");
+  const lines = [];
+  let line = "";
+  for (const w of words) {
+    if ((line + " " + w).trim().length > maxLen) { lines.push(line.trim()); line = w; }
+    else line += " " + w;
+  }
+  if (line.trim()) lines.push(line.trim());
+  return lines;
+}
+
+// Рисуем PNG-карточку с фактом (1080×1350 — крупно на экране)
+function renderFactCard(fact) {
+  const W = 1080, H = 1350;
+  const lines = wrapText(fact, 22);
+  const lineHeight = 62;
+  let tspans = "";
+  lines.forEach((l, i) => {
+    // XML-экранирование: кавычки и угловые скобки в тексте сломали бы SVG
+    const safe = l.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    tspans += `<tspan x="120" dy="${i === 0 ? 0 : lineHeight}">${safe}</tspan>`;
+  });
+  const textTop = Math.round(H / 2 - (lines.length * lineHeight) / 2 + 60);
+
+  const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff8ef"/>
+      <stop offset="1" stop-color="#fde8d0"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#e8a87c"/>
+      <stop offset="1" stop-color="#d97b66"/>
+    </linearGradient>
+  </defs>
+  <rect width="${W}" height="${H}" fill="url(#bg)"/>
+  <circle cx="${W - 120}" cy="140" r="180" fill="#ffffff" opacity="0.35"/>
+  <circle cx="100" cy="${H - 120}" r="200" fill="#ffffff" opacity="0.3"/>
+  <circle cx="${W - 60}" cy="${H - 300}" r="90" fill="#ffffff" opacity="0.25"/>
+  <rect x="60" y="60" width="${W - 120}" height="${H - 120}" rx="48" fill="#ffffff" opacity="0.92"/>
+  <rect x="60" y="60" width="${W - 120}" height="14" rx="7" fill="url(#accent)"/>
+  <text x="120" y="200" font-family="Noto Sans" font-weight="700" font-size="40" fill="#b0603f" letter-spacing="9">СОВУШКА В ТАПКАХ</text>
+  <path d="M 124 262 l 5 10 10.5 1.5 -7.5 7.5 1.8 10.5 -10 -5.2 -10 5.2 1.8 -10.5 -7.5 -7.5 10.5 -1.5 z" fill="#d97b66"/>
+  <text x="152" y="276" font-family="Noto Sans" font-size="33" fill="#c9a27e">факт дня</text>
+  <path d="M 320 262 l 5 10 10.5 1.5 -7.5 7.5 1.8 10.5 -10 -5.2 -10 5.2 1.8 -10.5 -7.5 -7.5 10.5 -1.5 z" fill="#d97b66"/>
+  <text x="120" y="${textTop}" font-family="Noto Sans" font-size="58" fill="#4a3b2f">${tspans}</text>
+  <text x="120" y="${H - 110}" font-family="Noto Sans" font-size="30" fill="#c9a27e">t.me/fact_gn_bot</text>
+  <g transform="translate(${W - 280}, ${H - 360}) scale(0.92)">
+    <ellipse cx="95" cy="120" rx="95" ry="105" fill="#b0603f"/>
+    <path d="M 20 50 L 45 5 L 65 45 Z" fill="#b0603f"/>
+    <path d="M 170 50 L 145 5 L 125 45 Z" fill="#b0603f"/>
+    <ellipse cx="95" cy="140" rx="62" ry="70" fill="#f5ddc1"/>
+    <circle cx="60" cy="90" r="30" fill="#ffffff"/>
+    <circle cx="130" cy="90" r="30" fill="#ffffff"/>
+    <circle cx="63" cy="93" r="13" fill="#3d2c1e"/>
+    <circle cx="127" cy="93" r="13" fill="#3d2c1e"/>
+    <circle cx="67" cy="89" r="4.5" fill="#ffffff"/>
+    <circle cx="131" cy="89" r="4.5" fill="#ffffff"/>
+    <path d="M 95 112 L 82 128 L 95 142 L 108 128 Z" fill="#e8a35c"/>
+    <path d="M 55 165 q 40 22 80 0" stroke="#d9964f" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M 60 182 q 35 20 70 0" stroke="#d9964f" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="30" cy="235" rx="26" ry="12" fill="#b0603f"/>
+    <ellipse cx="160" cy="235" rx="26" ry="12" fill="#b0603f"/>
+  </g>
+</svg>`;
+
+  const resvg = new Resvg(svg, {
+    fitTo: { mode: "width", value: W },
+    font: { fontFiles: ["fonts/NotoSans-Regular.ttf", "fonts/NotoSans-Bold.ttf"], loadSystemFonts: false },
+  });
+  return Buffer.from(resvg.render().asPng());
+}
+
+// Кэш: карточка каждого факта рисуется только один раз
+const cardCache = new Map();
+function factCard(fact) {
+  if (!cardCache.has(fact)) cardCache.set(fact, renderFactCard(fact));
+  return cardCache.get(fact);
+}
+
+// /fact — выдать случайный факт карточкой
 async function sendFact(ctx) {
   const keyboard = new InlineKeyboard().text("🎲 Ещё!", "more");
-  await ctx.reply(`💡 ${randomFact()}`, { reply_markup: keyboard });
+  const fact = randomFact();
+  await ctx.replyWithPhoto(new InputFile(factCard(fact)), { reply_markup: keyboard });
 }
 
 // Справка о боте — общий текст для /info и кнопки
