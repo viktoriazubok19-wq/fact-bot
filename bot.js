@@ -481,16 +481,64 @@ setInterval(async () => {
 }, 60_000);
 
 // ----------------------------------------------------
-// Мини HTTP-сервер: Render проверяет «жив ли бот» запросами
-// на адрес порта. Без него бесплатный тариф отключит бота.
+// МИНИ-ПРИЛОЖЕНИЕ 🦉
+// Тот же сервер отдаёт веб-страницу (public/index.html)
+// и данные для неё: факты, викторину, предсказания, новости.
+// Страница открывается прямо в Telegram через кнопку меню.
 // ----------------------------------------------------
 import { createServer } from "node:http";
+
+function json(res, data) {
+  res.writeHead(200, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Access-Control-Allow-Origin": "*", // разрешаем запросы со страницы приложения
+  });
+  res.end(JSON.stringify(data));
+}
+
 const PORT = process.env.PORT || 3000;
-createServer((req, res) => {
-  res.writeHead(200);
-  res.end("Bot is alive!");
+createServer(async (req, res) => {
+  const url = new URL(req.url, "http://localhost");
+
+  // API для мини-приложения
+  if (url.pathname === "/api/fact") return json(res, { text: randomFact() });
+  if (url.pathname === "/api/fortune") return json(res, { text: pick(fortunes) });
+  if (url.pathname === "/api/news") return json(res, { text: pick(news) });
+
+  // Викторина: выдаём вопрос БЕЗ правильного ответа,
+  // чтобы нельзя было подсмотреть через инструменты разработчика
+  if (url.pathname === "/api/quiz") {
+    const qid = Math.floor(Math.random() * quiz.length);
+    return json(res, { qid, question: quiz[qid].question, options: quiz[qid].options });
+  }
+  if (url.pathname === "/api/quiz/answer") {
+    const qid = Number(url.searchParams.get("qid"));
+    const choice = Number(url.searchParams.get("choice"));
+    const q = quiz[qid];
+    if (!q) return json(res, { error: "нет такого вопроса" });
+    return json(res, {
+      right: choice === q.correct,
+      correct: q.correct,
+      explanation: q.explanation,
+    });
+  }
+
+  // Всё остальное — отдаём страницу приложения (или проверку живости)
+  const page = existsSync("./public/index.html")
+    ? readFile("./public/index.html", "utf-8")
+    : "Bot is alive!";
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(page);
 }).listen(PORT);
 
+// Делаем «Открыть Совушку» кнопкой меню в чате
+bot.api.setChatMenuButton({
+  menu_button: { type: "web_app", text: "🦉 Открыть Совушку", web_app: { url: WEB_APP_URL } },
+}).catch((err) => console.error("Кнопка меню не установилась:", err.message));
+
 // Запускаем бота
+// Адрес мини-приложения: на Render он приходит в переменной RENDER_EXTERNAL_URL,
+// локально — подставь свой адрес вручную
+const WEB_APP_URL = process.env.RENDER_EXTERNAL_URL || "https://fact-bot-hzx8.onrender.com";
 console.log("Бот запущен! Жду сообщений... 🚀");
 bot.start();

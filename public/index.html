@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Совушка в тапках 🦉</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body {
+    background: linear-gradient(180deg, #fff8ef, #fde8d0);
+    min-height: 100vh; color: #4a3b2f; padding: 16px;
+    padding-bottom: 90px;
+  }
+  .header { text-align: center; padding: 12px 0 20px; }
+  .header h1 { font-size: 22px; letter-spacing: 2px; color: #b0603f; }
+  .header p { font-size: 13px; color: #c9a27e; margin-top: 4px; }
+  .tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 14px; }
+  .tab {
+    flex-shrink: 0; border: none; border-radius: 20px; padding: 9px 14px;
+    background: #ffffffcc; color: #b0603f; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .tab.active { background: #b0603f; color: #fff; }
+  .card {
+    background: #ffffffee; border-radius: 24px; padding: 26px 22px;
+    box-shadow: 0 8px 24px rgba(176, 96, 63, 0.12);
+    animation: pop 0.25s ease;
+  }
+  @keyframes pop { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .label { font-size: 12px; letter-spacing: 3px; color: #c9a27e; text-transform: uppercase; margin-bottom: 14px; }
+  .fact-text { font-size: 20px; line-height: 1.45; }
+  .fortune-text { font-size: 20px; line-height: 1.5; font-style: italic; }
+  .news-text { font-size: 16px; line-height: 1.55; white-space: pre-line; }
+  .btn {
+    display: block; width: 100%; margin-top: 18px; border: none; border-radius: 16px;
+    padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer;
+    background: linear-gradient(90deg, #e8a87c, #d97b66); color: #fff;
+  }
+  .btn:active { transform: scale(0.98); }
+  .quiz-option {
+    display: block; width: 100%; margin-top: 10px; border: 2px solid #f0dcc4;
+    background: #fff; border-radius: 14px; padding: 13px; font-size: 16px;
+    color: #4a3b2f; cursor: pointer; text-align: left;
+  }
+  .quiz-option.correct { border-color: #7fc98a; background: #f0faf1; }
+  .quiz-option.wrong { border-color: #e89a9a; background: #fdf3f3; }
+  .quiz-option:disabled { cursor: default; }
+  .explanation { margin-top: 16px; font-size: 15px; line-height: 1.5; color: #6b5a49; }
+  .loader { text-align: center; padding: 40px 0; font-size: 28px; }
+  .owl { font-size: 44px; text-align: center; margin-bottom: 8px; }
+  .footer { text-align: center; color: #c9a27e; font-size: 12px; margin-top: 22px; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="owl">🦉</div>
+    <h1>СОВУШКА В ТАПКАХ</h1>
+    <p id="greeting"></p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="fact">🦉 Факт</button>
+    <button class="tab" data-tab="quiz">🎯 Викторина</button>
+    <button class="tab" data-tab="fortune">🔮 Предсказание</button>
+    <button class="tab" data-tab="news">📰 Новости</button>
+  </div>
+
+  <div id="content"><div class="loader">⏳ Совушка разогревает тапки...</div></div>
+  <div class="footer">t.me/fact_gn_bot</div>
+
+<script>
+const API = ""; // тот же сервер, что отдал страницу
+const content = document.getElementById("content");
+
+// Приветствие по времени суток
+const h = new Date().getHours();
+document.getElementById("greeting").textContent =
+  h >= 5 && h < 12 ? "Доброе утро! Чайник уже закипел ☕️" :
+  h >= 12 && h < 18 ? "Добрый день! Тапки на месте 🥿" :
+  h >= 18 && h < 23 ? "Добрый вечер! Самое уютное время 🌙" :
+  "Ой, кто-то не спит! ✨";
+
+// Хранилище состояния викторины
+let quizState = null;
+
+async function loadFact() {
+  content.innerHTML = '<div class="loader">🦉</div>';
+  const r = await fetch(API + "/api/fact");
+  const j = await r.json();
+  content.innerHTML = `
+    <div class="card">
+      <div class="label">✦ факт дня ✦</div>
+      <div class="fact-text">💡 ${j.text}</div>
+      <button class="btn" onclick="loadFact()">🎲 Ещё!</button>
+    </div>`;
+}
+
+async function loadQuiz() {
+  content.innerHTML = '<div class="loader">🎯</div>';
+  const r = await fetch(API + "/api/quiz");
+  quizState = await r.json();
+  renderQuiz();
+}
+
+function renderQuiz() {
+  const q = quizState;
+  content.innerHTML = `
+    <div class="card">
+      <div class="label">✦ тапка-загадка ✦</div>
+      <div class="fact-text">${q.question}</div>
+      <div id="options">
+        ${q.options.map((o, i) =>
+          `<button class="quiz-option" onclick="answerQuiz(${i})">${o}</button>`).join("")}
+      </div>
+      <div id="quiz-result"></div>
+    </div>`;
+}
+
+async function answerQuiz(choice) {
+  const r = await fetch(API + `/api/quiz/answer?qid=${quizState.qid}&choice=${choice}`);
+  const j = await r.json();
+  document.querySelectorAll(".quiz-option").forEach((b, i) => {
+    b.disabled = true;
+    if (i === j.correct) b.classList.add("correct");
+    else if (i === choice && !j.right) b.classList.add("wrong");
+  });
+  document.getElementById("quiz-result").innerHTML = `
+    <div class="explanation">${j.right ? "✅ <b>Точно! Тапки тебе по размеру!</b>" : "❌ <b>Почти!</b>"}
+    <br><br>🧠 ${j.explanation}</div>
+    <button class="btn" onclick="loadQuiz()">🎯 Ещё загадку!</button>`;
+  // Если открыто в Telegram — вибрируем
+  if (window.Telegram?.WebApp?.HapticFeedback) {
+    window.Telegram.WebApp.HapticFeedback.notificationOccurred(j.right ? "success" : "error");
+  }
+}
+
+async function loadFortune() {
+  content.innerHTML = '<div class="loader">🔮</div>';
+  const r = await fetch(API + "/api/fortune");
+  const j = await r.json();
+  content.innerHTML = `
+    <div class="card">
+      <div class="label">✦ предсказание дня ✦</div>
+      <div class="fortune-text">«${j.text}»</div>
+      <button class="btn" onclick="loadFortune()">🔮 Ещё!</button>
+    </div>`;
+}
+
+async function loadNews() {
+  content.innerHTML = '<div class="loader">📰</div>';
+  const r = await fetch(API + "/api/news");
+  const j = await r.json();
+  content.innerHTML = `
+    <div class="card">
+      <div class="label">✦ Санёк принёс газету ✦</div>
+      <div class="news-text">${j.text}</div>
+      <button class="btn" onclick="loadNews()">📰 Свежий выпуск!</button>
+    </div>`;
+}
+
+// Переключение вкладок
+const loaders = { fact: loadFact, quiz: loadQuiz, fortune: loadFortune, news: loadNews };
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    loaders[t.dataset.tab]();
+  });
+});
+
+// Разворачиваем на весь экран, если открыто в Telegram
+if (window.Telegram?.WebApp) {
+  window.Telegram.WebApp.ready();
+  window.Telegram.WebApp.expand();
+}
+
+loadFact();
+</script>
+</body>
+</html>
