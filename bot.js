@@ -531,14 +531,15 @@ createServer(async (req, res) => {
   res.end(page);
 }).listen(PORT);
 
+// Адрес мини-приложения: на Render он приходит в переменной RENDER_EXTERNAL_URL,
+// локально — подставь свой адрес вручную
+const WEB_APP_URL = process.env.RENDER_EXTERNAL_URL || "https://fact-bot-hzx8.onrender.com";
+
 // Делаем «Открыть Совушку» кнопкой меню в чате
 bot.api.setChatMenuButton({
   menu_button: { type: "web_app", text: "🦉 Открыть Совушку", web_app: { url: WEB_APP_URL } },
 }).catch((err) => console.error("Кнопка меню не установилась:", err.message));
 
 // Запускаем бота
-// Адрес мини-приложения: на Render он приходит в переменной RENDER_EXTERNAL_URL,
-// локально — подставь свой адрес вручную
-const WEB_APP_URL = process.env.RENDER_EXTERNAL_URL || "https://fact-bot-hzx8.onrender.com";
 console.log("Бот запущен! Жду сообщений... 🚀");
 bot.start();
