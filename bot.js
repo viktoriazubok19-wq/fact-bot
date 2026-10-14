@@ -47,9 +47,15 @@ const menuKeyboard = new Keyboard()
 // ============================================
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+// Сервер Render живёт по всемирному времени (UTC), а мы — по московскому.
+// Поэтому все часы и даты бот сверяет по нашему поясу.
+const BOT_TIMEZONE = "Europe/Moscow";
+const localHour = (d) => Number(d.toLocaleTimeString("ru-RU", { timeZone: BOT_TIMEZONE, hour: "numeric", hour12: false }));
+const localDate = (d) => d.toLocaleDateString("ru-RU", { timeZone: BOT_TIMEZONE });
+
 // Приветствие зависит от времени суток
 function dayGreeting() {
-  const h = new Date().getHours();
+  const h = localHour(new Date());
   if (h >= 5 && h < 12) return "Доброе утро! Чайник уже закипел ☕️";
   if (h >= 12 && h < 18) return "Добрый день! Тапки на месте, я на посту 🥿";
   if (h >= 18 && h < 23) return "Добрый вечер! Самое уютное время для фактов 🌙";
@@ -351,6 +357,16 @@ function loadSubscribers() {
   }
 }
 
+// Постоянные подписчики: вшиты в код, чтобы Render не потерял их
+// при обновлениях (файлы на сервере стираются при каждом деплое).
+// Сюда можно добавить ещё chat_id друзей.
+const BASE_SUBSCRIBERS = [962718072];
+
+// Все подписчики: постоянные + те, что накопились в файле
+function allSubscribers() {
+  return [...new Set([...BASE_SUBSCRIBERS, ...loadSubscribers()])];
+}
+
 // Каждому новому пользователю сохраняем его chat_id
 function saveSubscriber(chatId) {
   const subs = loadSubscribers();
@@ -368,14 +384,14 @@ bot.use((ctx, next) => {
 
 setInterval(async () => {
   const now = new Date();
-  // Часовой пояс пользователя — 9:00 утра. Проверяем и час, и минуту.
-  if (now.getHours() !== 9 || now.getMinutes() !== 0) return;
+  // 9:00 утра по московскому времени (Render живёт по UTC!)
+  if (localHour(now) !== 9 || now.getMinutes() !== 0) return;
 
-  const today = now.toDateString();
+  const today = localDate(now);
   if (existsSync(SENT_FILE) && readFile(SENT_FILE, "utf-8") === today) return;
 
   writeFileSync(SENT_FILE, today);
-  for (const chatId of loadSubscribers()) {
+  for (const chatId of allSubscribers()) {
     try {
       await bot.api.sendMessage(chatId, `☀️ ${dayGreeting()} Доброе утро начинается не с кофе, а с викторины:`);
       await sendQuiz(bot.api, chatId);
@@ -385,16 +401,16 @@ setInterval(async () => {
   }
 }, 60_000); // проверка раз в минуту
 
-// Вечерний выпуск Сашиных новостей — каждый день в 20:00
+// Вечерний выпуск Сашиных новостей — каждый день в 20:00 (по Москве)
 setInterval(async () => {
   const now = new Date();
-  if (now.getHours() !== 20 || now.getMinutes() !== 0) return;
+  if (localHour(now) !== 20 || now.getMinutes() !== 0) return;
 
-  const today = now.toDateString();
+  const today = localDate(now);
   if (existsSync(NEWS_SENT_FILE) && readFile(NEWS_SENT_FILE, "utf-8") === today) return;
   writeFileSync(NEWS_SENT_FILE, today);
 
-  for (const chatId of loadSubscribers()) {
+  for (const chatId of allSubscribers()) {
     try {
       await bot.api.sendMessage(chatId, "🗞 «Санёк принёс свежую газету!»");
       await sendNews(bot.api, chatId);
