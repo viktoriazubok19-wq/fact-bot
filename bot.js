@@ -39,8 +39,9 @@ import { InputFile } from "grammy";
 const menuKeyboard = new Keyboard()
   .text("🦉 Дай факт").row()
   .text("🎯 Хочу тапку-загадку!").row()
-  .text("👟 Кто ты?").row()
-  .text("📰 Санькины новости").resized();
+  .text("🔮 Предсказание из тапка").row()
+  .text("📰 Санькины новости").row()
+  .text("👟 Кто ты?").resized();
 
 // ============================================
 // УЮТНЫЕ ФРАЗЫ: сова общается с читателем
@@ -124,10 +125,29 @@ function wrapText(text, maxLen) {
   return lines;
 }
 
-// Рисуем PNG-карточку с фактом (1080×1350 — крупно на экране)
-function renderFactCard(fact) {
+// Цветовые темы карточек: тёплая — для фактов, магическая — для предсказаний
+const THEMES = {
+  warm: {
+    bg1: "#fff8ef", bg2: "#fde8d0",      // фон-градиент
+    accent1: "#e8a87c", accent2: "#d97b66", // полоска и звёзды
+    header: "#b0603f",                    // шапка
+    subtitle: "#c9a27e",                  // подзаголовок
+    text: "#4a3b2f",                      // основной текст
+  },
+  mystic: {
+    bg1: "#f7f3ff", bg2: "#e9ddff",
+    accent1: "#9b7ede", accent2: "#7a5cc0",
+    header: "#6b4fa8",
+    subtitle: "#9b85c9",
+    text: "#3f3560",
+  },
+};
+
+// Рисуем PNG-карточку (1080×1350 — крупно на экране)
+function renderCard(text, themeName, subtitle) {
+  const t = THEMES[themeName];
   const W = 1080, H = 1350;
-  const lines = wrapText(fact, 22);
+  const lines = wrapText(text, 22);
   const lineHeight = 62;
   let tspans = "";
   lines.forEach((l, i) => {
@@ -136,16 +156,18 @@ function renderFactCard(fact) {
     tspans += `<tspan x="120" dy="${i === 0 ? 0 : lineHeight}">${safe}</tspan>`;
   });
   const textTop = Math.round(H / 2 - (lines.length * lineHeight) / 2 + 60);
+  // Вторая звёздочка — сразу после подзаголовка
+  const star2X = 152 + subtitle.length * 17 + 16;
 
   const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff8ef"/>
-      <stop offset="1" stop-color="#fde8d0"/>
+      <stop offset="0" stop-color="${t.bg1}"/>
+      <stop offset="1" stop-color="${t.bg2}"/>
     </linearGradient>
     <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#e8a87c"/>
-      <stop offset="1" stop-color="#d97b66"/>
+      <stop offset="0" stop-color="${t.accent1}"/>
+      <stop offset="1" stop-color="${t.accent2}"/>
     </linearGradient>
   </defs>
   <rect width="${W}" height="${H}" fill="url(#bg)"/>
@@ -154,12 +176,12 @@ function renderFactCard(fact) {
   <circle cx="${W - 60}" cy="${H - 300}" r="90" fill="#ffffff" opacity="0.25"/>
   <rect x="60" y="60" width="${W - 120}" height="${H - 120}" rx="48" fill="#ffffff" opacity="0.92"/>
   <rect x="60" y="60" width="${W - 120}" height="14" rx="7" fill="url(#accent)"/>
-  <text x="120" y="200" font-family="Noto Sans" font-weight="700" font-size="40" fill="#b0603f" letter-spacing="9">СОВУШКА В ТАПКАХ</text>
-  <path d="M 124 262 l 5 10 10.5 1.5 -7.5 7.5 1.8 10.5 -10 -5.2 -10 5.2 1.8 -10.5 -7.5 -7.5 10.5 -1.5 z" fill="#d97b66"/>
-  <text x="152" y="276" font-family="Noto Sans" font-size="33" fill="#c9a27e">факт дня</text>
-  <path d="M 320 262 l 5 10 10.5 1.5 -7.5 7.5 1.8 10.5 -10 -5.2 -10 5.2 1.8 -10.5 -7.5 -7.5 10.5 -1.5 z" fill="#d97b66"/>
-  <text x="120" y="${textTop}" font-family="Noto Sans" font-size="58" fill="#4a3b2f">${tspans}</text>
-  <text x="120" y="${H - 110}" font-family="Noto Sans" font-size="30" fill="#c9a27e">t.me/fact_gn_bot</text>
+  <text x="120" y="200" font-family="Noto Sans" font-weight="700" font-size="40" fill="${t.header}" letter-spacing="9">СОВУШКА В ТАПКАХ</text>
+  <path d="M 124 262 l 5 10 10.5 1.5 -7.5 7.5 1.8 10.5 -10 -5.2 -10 5.2 1.8 -10.5 -7.5 -7.5 10.5 -1.5 z" fill="${t.accent2}"/>
+  <text x="152" y="276" font-family="Noto Sans" font-size="33" fill="${t.subtitle}">${subtitle}</text>
+  <path d="M ${star2X} 262 l 5 10 10.5 1.5 -7.5 7.5 1.8 10.5 -10 -5.2 -10 5.2 1.8 -10.5 -7.5 -7.5 10.5 -1.5 z" fill="${t.accent2}"/>
+  <text x="120" y="${textTop}" font-family="Noto Sans" font-size="58" fill="${t.text}">${tspans}</text>
+  <text x="120" y="${H - 110}" font-family="Noto Sans" font-size="30" fill="${t.subtitle}">t.me/fact_gn_bot</text>
   <g transform="translate(${W - 280}, ${H - 360}) scale(0.92)">
     <ellipse cx="95" cy="120" rx="95" ry="105" fill="#b0603f"/>
     <path d="M 20 50 L 45 5 L 65 45 Z" fill="#b0603f"/>
@@ -186,11 +208,17 @@ function renderFactCard(fact) {
   return Buffer.from(resvg.render().asPng());
 }
 
-// Кэш: карточка каждого факта рисуется только один раз
+// Кэш: карточка каждого текста рисуется только один раз
 const cardCache = new Map();
 function factCard(fact) {
-  if (!cardCache.has(fact)) cardCache.set(fact, renderFactCard(fact));
+  if (!cardCache.has(fact)) cardCache.set(fact, renderCard(fact, "warm", "факт дня"));
   return cardCache.get(fact);
+}
+
+function fortuneCard(fortune) {
+  const key = "F:" + fortune;
+  if (!cardCache.has(key)) cardCache.set(key, renderCard("«" + fortune + "»", "mystic", "предсказание дня"));
+  return cardCache.get(key);
 }
 
 // /fact — выдать случайный факт карточкой
@@ -203,6 +231,37 @@ async function sendFact(ctx) {
   });
 }
 
+// ============================================
+// ПРЕДСКАЗАНИЯ ИЗ ТАПКА 🔮
+// Сова достаёт из тапка бумажку с предсказанием.
+// ============================================
+import { readFileSync as readFortunes } from "node:fs";
+const fortunes = JSON.parse(readFortunes("./fortunes.json", "utf-8"));
+
+const fortuneCaptions = [
+  "Сова запустила лапу глубоко в тапок и достала...",
+  "В тапке нашлась мятая бумажка. Разворачиваем...",
+  "Предсказание из тапка, только что вынутое:",
+  "Тапок пошептался с судьбой и выдал:",
+  "Санёк клянётся, что не подкладывал. Читаем:",
+];
+
+async function sendFortune(ctx) {
+  const keyboard = new InlineKeyboard().text("🔮 Ещё!", "fortune");
+  const fortune = pick(fortunes);
+  await ctx.replyWithPhoto(new InputFile(fortuneCard(fortune)), {
+    caption: pick(fortuneCaptions),
+    reply_markup: keyboard,
+  });
+}
+
+bot.command("fortune", sendFortune);
+bot.hears("🔮 Предсказание из тапка", sendFortune);
+bot.callbackQuery("fortune", async (ctx) => {
+  ctx.answerCallbackQuery();
+  await sendFortune(ctx);
+});
+
 // Справка о боте — общий текст для /info и кнопки
 function infoText() {
   return (
@@ -210,7 +269,8 @@ function infoText() {
     `Что я умею:\n` +
     `🦉 Кнопка «Дай факт» — случайный факт\n` +
     `🎯 Кнопка «Хочу тапку-загадку!» — викторина в любой момент\n` +
-    `🎲 Кнопка «Ещё!» — тапок за тапком\n` +
+    `🔮 Кнопка «Предсказание из тапка» — что день грядущий нам готовит\n` +
+    `📰 Кнопка «Санькины новости» — вечерний выпуск\n` +
     `☕️ В 9:00 утра — викторина дня, как кофе, только для мозга\n\n` +
     `Уютного познания! 🧠✨`
   );
